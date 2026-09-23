@@ -1,0 +1,84 @@
+name: Convert subscription and publish release
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 每天 UTC 00:00 执行一次
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyYAML
+
+      - name: Read subscription URL
+        id: subscription
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          URL="$(
+            sed \
+              -e 's/\r$//' \
+              -e '/^[[:space:]]*$/d' \
+              -e '/^[[:space:]]*#/d' \
+              input.txt | head -n 1
+          )"
+
+          if [ -z "$URL" ]; then
+            echo "input.txt 中没有找到订阅链接"
+            exit 1
+          fi
+
+          case "$URL" in
+            http://*|https://*)
+              ;;
+            *)
+              echo "input.txt 第一条有效内容不是 HTTP/HTTPS URL"
+              exit 1
+              ;;
+          esac
+
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Convert subscription to YAML
+        run: |
+          python subscription_converter.py \
+            "${{ steps.subscription.outputs.url }}" \
+            --format clash \
+            --template standard \
+            --output converted.yaml
+
+      - name: Check generated file
+        run: |
+          test -s converted.yaml
+          echo "生成文件大小：$(du -h converted.yaml | cut -f1)"
+
+      - name: Create GitHub Release and upload YAML
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="subscription-$(date -u +'%Y%m%d-%H%M%S')"
+          TITLE="Subscription $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+          gh release create "$TAG" \
+            converted.yaml \
+            --title "$TITLE" \
+            --notes "Automatically generated subscription configuration." \
+            --latest
