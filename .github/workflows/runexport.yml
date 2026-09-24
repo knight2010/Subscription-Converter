@@ -3,7 +3,6 @@ name: Convert subscription and publish release
 on:
   workflow_dispatch:
   schedule:
-    # 每天 UTC 00:00 执行一次
     - cron: "0 0 * * *"
 
 permissions:
@@ -27,40 +26,42 @@ jobs:
           python -m pip install --upgrade pip
           pip install PyYAML
 
-      - name: Read subscription URL
-        id: subscription
+      - name: Validate input file
         shell: bash
         run: |
           set -euo pipefail
 
-          URL="$(
-            sed \
-              -e 's/\r$//' \
-              -e '/^[[:space:]]*$/d' \
-              -e '/^[[:space:]]*#/d' \
-              input.txt | head -n 1
-          )"
-
-          if [ -z "$URL" ]; then
-            echo "input.txt 中没有找到订阅链接"
+          if [ ! -f input.txt ]; then
+            echo "input.txt 不存在"
             exit 1
           fi
 
-          case "$URL" in
-            http://*|https://*)
-              ;;
-            *)
-              echo "input.txt 第一条有效内容不是 HTTP/HTTPS URL"
-              exit 1
-              ;;
-          esac
+          if [ ! -s input.txt ]; then
+            echo "input.txt 是空文件"
+            exit 1
+          fi
 
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          # 允许 vmess://, vless://, ss://, trojan://, hysteria2://
+          if ! grep -Eq '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt; then
+            echo "input.txt 中没有找到支持的节点链接"
+            echo "支持格式示例："
+            echo "  vmess://..."
+            echo "  vless://..."
+            echo "  ss://..."
+            echo "  trojan://..."
+            echo "  hysteria2://..."
+            exit 1
+          fi
 
-      - name: Convert subscription to YAML
+          echo "检测到支持的节点格式："
+          grep -oE '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt \
+            | sort | uniq -c
+
+      - name: Convert nodes to YAML
         run: |
           python subscription_converter.py \
-            "${{ steps.subscription.outputs.url }}" \
+            input.txt \
+            --file \
             --format clash \
             --template standard \
             --output converted.yaml
