@@ -1,1 +1,1 @@
-https://pk2.miu2.cc.cd/262a2ee6-b2b5-4e0e-b396-ff7ca7a2e12a/sub/clash
+https://subapi.cmliussss.net/sub?target=clash&url=https%3A%2F%2Fpk2.miu2.cc.cd%2F262a2ee6-b2b5-4e0e-b396-ff7ca7a2e12a%2Fsub%2Fclash&insert=false&config=https%3A%2F%2Fraw.githubusercontent.com%2Fcmliu%2FACL4SSR%2Fmain%2FClash%2Fconfig%2FACL4SSR_Online_MultiCountry_CF.ini&emoji=true&list=false&xudp=false&udp=false&tfo=false&expand=true&scv=false&fdn=false&new_name=true
