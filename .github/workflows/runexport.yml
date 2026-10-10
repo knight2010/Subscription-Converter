@@ -39,50 +39,30 @@ jobs:
             exit 1
           fi
 
-          if ! grep -Eq '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt; then
+          if grep -Eq '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt; then
+            echo "检测到支持的节点格式："
+            grep -oE '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt \
+              | sort | uniq -c
+          else
             echo "未检测到直接节点链接，尝试 base64 订阅解码..."
-            python << 'PY'
-import base64
-import re
-from pathlib import Path
+            python scripts/decode_base64.py input.txt
 
-p = Path("input.txt")
-raw = p.read_text(encoding="utf-8", errors="ignore").strip()
-if not raw:
-    raise SystemExit("input.txt 为空")
+            if ! grep -Eq '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt; then
+              echo "input.txt 中没有找到支持的节点链接"
+              echo "支持格式示例："
+              echo "  vmess://..."
+              echo "  vless://..."
+              echo "  ss://..."
+              echo "  trojan://..."
+              echo "  hysteria2://..."
+              echo "  或 base64 编码的订阅内容"
+              exit 1
+            fi
 
-payload = "".join(raw.split())
-if not re.fullmatch(r"[A-Za-z0-9+/=]+", payload):
-    raise SystemExit("不是 base64 内容，也没有找到支持的节点链接")
-
-try:
-    decoded = base64.b64decode(payload, validate=True).decode("utf-8", errors="ignore")
-except Exception as exc:
-    raise SystemExit(f"Base64 解码失败: {exc}")
-
-if not re.search(r"(vmess|vless|ss|trojan|hysteria2)://", decoded):
-    raise SystemExit("Base64 解码后未发现支持的节点链接")
-
-p.write_text(decoded, encoding="utf-8")
-print("Base64 解码成功")
-PY
+            echo "Base64 解码后检测到支持的节点格式："
+            grep -oE '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt \
+              | sort | uniq -c
           fi
-
-          if ! grep -Eq '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt; then
-            echo "input.txt 中没有找到支持的节点链接"
-            echo "支持格式示例："
-            echo "  vmess://..."
-            echo "  vless://..."
-            echo "  ss://..."
-            echo "  trojan://..."
-            echo "  hysteria2://..."
-            echo "  或 base64 编码的订阅内容"
-            exit 1
-          fi
-
-          echo "检测到支持的节点格式："
-          grep -oE '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt \
-            | sort | uniq -c
 
       - name: Convert nodes to YAML
         run: |
