@@ -39,42 +39,33 @@ jobs:
             exit 1
           fi
 
-          # 先尝试直接识别原始订阅链接
           if ! grep -Eq '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt; then
             echo "未检测到直接节点链接，尝试 base64 订阅解码..."
             python - <<'PY'
-import base64
-import re
-import sys
-from pathlib import Path
-
-p = Path("input.txt")
-raw = p.read_text(encoding="utf-8", errors="ignore").strip()
-
-if not raw:
-    raise SystemExit("input.txt 为空")
-
-# 去掉空白，兼容 base64 里有换行或空格的情况
-payload = "".join(raw.split())
-
-# 只在符合 base64 语法时尝试解码
-if not re.fullmatch(r"[A-Za-z0-9+/=]+", payload):
-    raise SystemExit("不是 base64 内容，且未发现支持的节点链接")
-
-try:
-    decoded = base64.b64decode(payload, validate=True)
-except Exception as e:
-    raise SystemExit(f"Base64 解码失败: {e}")
-
-text = decoded.decode("utf-8", errors="ignore")
-
-# 只接受解码后仍然是订阅链接内容
-if not re.search(r"(vmess|vless|ss|trojan|hysteria2)://", text):
-    raise SystemExit("Base64 解码后未发现支持的节点链接")
-
-p.write_text(text, encoding="utf-8")
-print("Base64 解码成功")
-PY
+            import base64
+            import re
+            from pathlib import Path
+            
+            p = Path("input.txt")
+            raw = p.read_text(encoding="utf-8", errors="ignore").strip()
+            if not raw:
+                raise SystemExit("input.txt 为空")
+            
+            payload = "".join(raw.split())
+            if not re.fullmatch(r"[A-Za-z0-9+/=]+", payload):
+                raise SystemExit("不是 base64 内容，也没有找到支持的节点链接")
+            
+            try:
+                decoded = base64.b64decode(payload, validate=True).decode("utf-8", errors="ignore")
+            except Exception as exc:
+                raise SystemExit(f"Base64 解码失败: {exc}")
+            
+            if not re.search(r"(vmess|vless|ss|trojan|hysteria2)://", decoded):
+                raise SystemExit("Base64 解码后未发现支持的节点链接")
+            
+            p.write_text(decoded, encoding="utf-8")
+            print("Base64 解码成功")
+            PY
           fi
 
           if ! grep -Eq '^[[:space:]]*(vmess|vless|ss|trojan|hysteria2)://' input.txt; then
